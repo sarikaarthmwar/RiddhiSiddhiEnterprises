@@ -4,7 +4,7 @@
 module.exports = async function handler(req, res) {
 
   // ── CORS headers ──
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://riddhi-siddhi-enterprises.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -25,9 +25,9 @@ module.exports = async function handler(req, res) {
   }
 
   // ── Read env variables ──
-  const serviceId  = process.env.EMAILJS_SERVICE_ID;
-  const templateId = process.env.EMAILJS_TEMPLATE_ID;
-  const publicKey  = process.env.EMAILJS_PUBLIC_KEY;
+  const serviceId  = process.env.service_4zyhc0i;
+  const templateId = process.env.template_bper26z;
+  const publicKey  = process.env.Rk3tl5yA0sQFs5bBy;
 
   // Log missing vars to Vercel Function logs for easy debugging
   if (!serviceId || !templateId || !publicKey) {
