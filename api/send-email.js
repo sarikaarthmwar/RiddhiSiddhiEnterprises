@@ -25,9 +25,9 @@ module.exports = async function handler(req, res) {
   }
 
   // ── Read env variables ──
-  const serviceId  = process.env.service_4zyhc0i;
-  const templateId = process.env.template_bper26z;
-  const publicKey  = process.env.Rk3tl5yA0sQFs5bBy;
+  const serviceId  = process.env.service_rqakl8n;
+  const templateId = process.env.template_enewu0u;
+  const publicKey  = process.env.Ooi_F5tDgCopDUeMt;
 
   // Log missing vars to Vercel Function logs for easy debugging
   if (!serviceId || !templateId || !publicKey) {
