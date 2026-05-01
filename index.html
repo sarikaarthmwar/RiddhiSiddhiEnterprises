@@ -585,7 +585,9 @@ function submitHero(){
   const templateParams={
     name:n,
     phone:p,
+    email:'',
     service:s,
+    message:`Quick enquiry from website hero form. Service: ${s}. Phone: ${p}`,
     subject:'New enquiry from website hero form'
   };
   sendEmail(templateParams,'hero-ok');

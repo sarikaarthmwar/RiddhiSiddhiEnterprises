@@ -14,15 +14,22 @@ module.exports = async function handler(req, res) {
   const { name, phone, email, service, message } = req.body || {};
 
   // ── Validation ──
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: "Name, email, and message are required" });
+  if (!name || !phone) {
+    return res.status(400).json({ error: "Name and phone are required" });
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+
+  const hasEmail = typeof email === 'string' && email.trim().length > 0;
+  const userEmail = hasEmail ? email.trim() : '';
+  if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(userEmail)) {
     return res.status(400).json({ error: "Invalid email address" });
   }
-  if (message.trim().length < 10) {
+
+  const trimmedMessage = typeof message === 'string' ? message.trim() : '';
+  if (trimmedMessage && trimmedMessage.length < 10) {
     return res.status(400).json({ error: "Message is too short" });
   }
+
+  const finalMessage = trimmedMessage || `Quick enquiry received.\nService: ${service || 'Not specified'}\nPhone: ${phone.trim()}`;
 
   // ── Read env variables ──
   const serviceId  = process.env.service_rqakl8n;
@@ -46,11 +53,11 @@ module.exports = async function handler(req, res) {
         user_id:     publicKey,
         template_params: {
           from_name:  name.trim(),
-          from_email: email.trim(),
+          from_email: userEmail || 'noreply@riddhi-siddhi-enterprises.vercel.app',
           phone:      phone ? phone.trim() : '',
           service:    service || '',
-          message:    message.trim(),
-          reply_to:   email.trim()
+          message:    finalMessage,
+          reply_to:   userEmail || 'noreply@riddhi-siddhi-enterprises.vercel.app'
         }
       })
     });
