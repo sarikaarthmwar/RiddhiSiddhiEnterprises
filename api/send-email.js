@@ -1,5 +1,5 @@
 // api/send-email.js
-// Vercel Serverless Function — CommonJS format (most reliable on Vercel)
+// Vercel Serverless Function — CommonJS format
 
 module.exports = async function handler(req, res) {
 
@@ -8,7 +8,6 @@ module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
@@ -21,6 +20,7 @@ module.exports = async function handler(req, res) {
 
   const hasEmail = typeof email === 'string' && email.trim().length > 0;
   const userEmail = hasEmail ? email.trim() : '';
+
   if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(userEmail)) {
     return res.status(400).json({ error: "Invalid email address" });
   }
@@ -30,16 +30,21 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Message is too short" });
   }
 
-  const finalMessage = trimmedMessage || `Quick enquiry received.\nService: ${service || 'Not specified'}\nPhone: ${phone.trim()}`;
+  const finalMessage = trimmedMessage ||
+    `Quick enquiry received.\nService: ${service || 'Not specified'}\nPhone: ${phone.trim()}`;
 
   // ── Read env variables ──
-  const serviceId  = process.env.service_rqakl8n;
-  const templateId = process.env.template_enewu0u;
-  const publicKey  = process.env.Ooi_F5tDgCopDUeMt;
+  // These names must exactly match what you set in Vercel → Settings → Environment Variables
+  const serviceId  = process.env.EMAILJS_SERVICE_ID;
+  const templateId = process.env.EMAILJS_TEMPLATE_ID;
+  const publicKey  = process.env.EMAILJS_PUBLIC_KEY;
 
-  // Log missing vars to Vercel Function logs for easy debugging
   if (!serviceId || !templateId || !publicKey) {
-    console.error("Missing env vars:", { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });
+    console.error("Missing env vars:", {
+      EMAILJS_SERVICE_ID:  !!serviceId,
+      EMAILJS_TEMPLATE_ID: !!templateId,
+      EMAILJS_PUBLIC_KEY:  !!publicKey
+    });
     return res.status(500).json({ error: "Server configuration error." });
   }
 
