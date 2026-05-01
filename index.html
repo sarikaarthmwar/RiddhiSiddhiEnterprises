@@ -604,7 +604,7 @@ function submitContact(){
     phone:p,
     email:e,
     service:s,
-    message:m,
+    message:m || `Contact enquiry from ${n}. Service: ${s || 'Not specified'}. Phone: ${p}`,
     subject:'New enquiry from website contact form'
   };
   sendEmail(templateParams,'contact-ok');
