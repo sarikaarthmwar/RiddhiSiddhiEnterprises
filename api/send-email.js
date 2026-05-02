@@ -34,16 +34,17 @@ module.exports = async function handler(req, res) {
     `Quick enquiry received.\nService: ${service || 'Not specified'}\nPhone: ${phone.trim()}`;
 
   // ── Read env variables ──
-  // These names must exactly match what you set in Vercel → Settings → Environment Variables
-  const serviceId  = process.env.EMAILJS_SERVICE_ID;
-  const templateId = process.env.EMAILJS_TEMPLATE_ID;
-  const publicKey  = process.env.EMAILJS_PUBLIC_KEY;
+  const serviceId   = process.env.EMAILJS_SERVICE_ID;
+  const templateId  = process.env.EMAILJS_TEMPLATE_ID;
+  const publicKey   = process.env.EMAILJS_PUBLIC_KEY;
+  const privateKey  = process.env.EMAILJS_PRIVATE_KEY;
 
-  if (!serviceId || !templateId || !publicKey) {
+  if (!serviceId || !templateId || !publicKey || !privateKey) {
     console.error("Missing env vars:", {
-      EMAILJS_SERVICE_ID:  !!serviceId,
-      EMAILJS_TEMPLATE_ID: !!templateId,
-      EMAILJS_PUBLIC_KEY:  !!publicKey
+      EMAILJS_SERVICE_ID:   !!serviceId,
+      EMAILJS_TEMPLATE_ID:  !!templateId,
+      EMAILJS_PUBLIC_KEY:   !!publicKey,
+      EMAILJS_PRIVATE_KEY:  !!privateKey
     });
     return res.status(500).json({ error: "Server configuration error." });
   }
@@ -57,6 +58,7 @@ module.exports = async function handler(req, res) {
         service_id:  serviceId,
         template_id: templateId,
         user_id:     publicKey,
+        accessToken: privateKey,
         template_params: {
           from_name:  name.trim(),
           from_email: userEmail || 'noreply@riddhi-siddhi-enterprises.vercel.app',
