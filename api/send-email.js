@@ -60,6 +60,7 @@ module.exports = async function handler(req, res) {
         user_id:     publicKey,
         accessToken: privateKey,
         template_params: {
+          to_email: process.env.TO_EMAIL,
           from_name:  name.trim(),
           from_email: userEmail || 'noreply@riddhi-siddhi-enterprises.vercel.app',
           phone:      phone ? phone.trim() : '',
