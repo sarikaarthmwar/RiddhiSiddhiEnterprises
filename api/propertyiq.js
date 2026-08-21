@@ -57,8 +57,7 @@ Return this exact JSON shape:
       body: JSON.stringify({
         model: process.env.PROPERTYIQ_MODEL || 'gpt-5.6-luna',
         tools: [{ type: 'web_search', search_context_size: 'high', user_location: { type: 'approximate', country: 'IN', region: 'Maharashtra', city: 'Pune', timezone: 'Asia/Kolkata' } }],
-        input: prompt,
-        temperature: 0.1
+        input: prompt
       })
     });
 
