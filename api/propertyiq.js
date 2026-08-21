@@ -7,29 +7,31 @@ export default async function handler(req, res) {
     const { project, location, propertyType, area, price, listingUrl } = body;
     if (!project || !location || !price) return res.status(400).json({ error: 'Project, location and quoted price are required.' });
 
-    const prompt = `You are PropertyIQ, an evidence-led real-estate investment research analyst focused on India. Research the property opportunity below using current web information, then return ONLY valid JSON.
+    const prompt = `You are PropertyIQ, an evidence-led real-estate investment analyst focused on India. Research this property using current web information and return ONLY valid JSON.
 
-PROPERTY INPUT
+PROPERTY
 Project: ${project}
 Location: ${location}
-Property type: ${propertyType || 'Not specified'}
+Type: ${propertyType || 'Not specified'}
 Area: ${area || 'Not specified'} sq.ft.
 Quoted price: INR ${price}
 Listing URL: ${listingUrl || 'Not provided'}
 
-RESEARCH REQUIREMENTS
-1. Identify the project/developer and location. Prefer official developer/RERA/government sources where available.
-2. Estimate current market price per sq.ft. and a reasonable market-value range for the supplied unit. Distinguish asking price from evidence-based estimates.
-3. Research comparable sale prices and rental evidence in the same project/locality. Estimate realistic monthly rent and rental yield.
-4. Research historical locality/project price trends and provide a conservative 5-year annual appreciation range. Never present appreciation as guaranteed.
-5. Assess rental demand, resale liquidity, supply/competition, connectivity and major nearby demand drivers.
-6. Identify important risks, including oversupply, execution/possession, legal/regulatory uncertainty, high entry price, weak yield or infrastructure dependence. Do not invent facts; mark unknowns.
-7. Give a PropertyIQ score out of 100 and verdict: BUY, NEGOTIATE, WATCH or AVOID. The score must reflect valuation, rental economics, growth potential, liquidity and risk. It is decision support, not financial advice.
-8. Calculate an indicative break-even appreciation rate versus a 10-year alternative investment return of 10% ONLY if enough inputs exist. Otherwise return null.
-9. Give 3 scenarios: downside, base and upside with appreciation ranges, not point forecasts.
-10. Include source URLs actually used. Do not fabricate URLs. If evidence is weak, say so.
+RESEARCH
+1. Identify project/developer/location using official developer, RERA or government sources where available.
+2. Estimate current market price/sq.ft. and a reasonable value range. Separate asking price from evidence.
+3. Find comparable sale prices and rental evidence in the project/locality. Estimate monthly rent and yield.
+4. Estimate a conservative 5-year annual appreciation range from current locality/project evidence. Never guarantee returns.
+5. Assess rental demand, resale liquidity, supply, connectivity and demand drivers.
+6. Identify material risks. Never invent facts; mark unknowns.
+7. Score valuation, rental economics, growth, liquidity and risk into PropertyIQ 0-100 and verdict BUY, NEGOTIATE, WATCH or AVOID.
+8. Calculate break-even appreciation versus a 10% alternative return only when enough inputs exist; otherwise null.
+9. Give downside, base and upside appreciation ranges.
+10. Return only source URLs actually used; never fabricate URLs.
 
-Return this exact JSON shape:
+Keep narrative fields concise and arrays to the most useful 3-5 items so the response stays compact.
+
+Return exactly this JSON shape:
 {
   "propertyName":"",
   "developer":"",
@@ -56,7 +58,8 @@ Return this exact JSON shape:
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
       body: JSON.stringify({
         model: process.env.PROPERTYIQ_MODEL || 'gpt-5.6-luna',
-        tools: [{ type: 'web_search', search_context_size: 'high', user_location: { type: 'approximate', country: 'IN', region: 'Maharashtra', city: 'Pune', timezone: 'Asia/Kolkata' } }],
+        reasoning: { effort: 'low' },
+        tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'IN', region: 'Maharashtra', city: 'Pune', timezone: 'Asia/Kolkata' } }],
         input: prompt
       })
     });
