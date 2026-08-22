@@ -38,7 +38,7 @@ Return only the structured JSON object requested by the response schema.`;
     const timeout = setTimeout(() => controller.abort(), 90000);
     let response;
     try {
-      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=' + encodeURIComponent(apiKey), {
+      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey), {
         method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema } })
       });
