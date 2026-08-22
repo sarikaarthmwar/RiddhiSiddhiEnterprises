@@ -2,9 +2,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({ error: 'PropertyIQ is not configured. Add GEMINI_API_KEY in Vercel Environment Variables.' });
-  }
+  if (!apiKey) return res.status(503).json({ error: 'PropertyIQ is not configured. Add GEMINI_API_KEY in Vercel Environment Variables.' });
 
   try {
     const body = req.body || {};
@@ -30,7 +28,7 @@ Return only the structured JSON object requested by the response schema.`;
         metrics: { type: 'ARRAY', items: { type: 'OBJECT', properties: { label: { type: 'STRING' }, score: { type: 'NUMBER' } }, required: ['label','score'] } },
         strengths: { type: 'ARRAY', items: { type: 'STRING' } }, risks: { type: 'ARRAY', items: { type: 'STRING' } },
         scenarios: { type: 'ARRAY', items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, appreciation: { type: 'STRING' }, comment: { type: 'STRING' } }, required: ['name','appreciation','comment'] } },
-        recommendation: { type: 'STRING' }, sources: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, url: { type: 'STRING' } }, required: ['title','url'] } }, dataGaps: { type: 'ARRAY', items: { type: 'STRING' } }
+        recommendation: { type: 'STRING' }, sources: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, url: { type: 'STRING' } }, required: ['title','url'] }, dataGaps: { type: 'ARRAY', items: { type: 'STRING' } }
       },
       required: ['propertyName','developer','locationSummary','marketPricePerSqft','estimatedValue','rental','appreciation','score','verdict','profile','breakEvenAppreciation','metrics','strengths','risks','scenarios','recommendation','sources','dataGaps']
     };
@@ -41,7 +39,7 @@ Return only the structured JSON object requested by the response schema.`;
     try {
       response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=' + encodeURIComponent(apiKey), {
         method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: schema } })
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema } })
       });
     } finally { clearTimeout(timeout); }
 
