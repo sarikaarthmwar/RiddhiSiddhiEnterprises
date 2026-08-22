@@ -1,10 +1,10 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(503).json({
-      error: 'PropertyIQ AI Gateway is not configured. Add AI_GATEWAY_API_KEY in Vercel, or enable Vercel OIDC authentication.'
+      error: 'PropertyIQ is not configured. Add GEMINI_API_KEY in Vercel Environment Variables.'
     });
   }
 
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     }
 
     const prompt = `You are PropertyIQ, an evidence-led real-estate investment analyst focused on India.
-Research the property using current web information. Use the web search tool for current evidence.
+Research the property using current web information. Use Google Search grounding for current evidence.
 Never invent facts or URLs. If evidence is unavailable, use null or an explicit data gap.
 Keep all narrative fields concise and arrays to 3-5 useful items.
 
@@ -38,54 +38,31 @@ RESEARCH
 7. Score valuation, rental economics, growth, liquidity and risk into PropertyIQ 0-100 and verdict BUY, NEGOTIATE, WATCH or AVOID.
 8. Calculate break-even appreciation versus a 10% alternative return only when enough inputs exist; otherwise null.
 9. Give downside, base and upside appreciation ranges.
-10. Return only source URLs actually used.
+10. Return only source URLs actually used. Prefer official/project/RERA sources and reputable property portals.
 
-Return the requested structured object. Do not wrap it in markdown.`;
+Return only the structured JSON object requested by the response schema.`;
 
     const schema = {
-      type: 'object',
-      additionalProperties: false,
+      type: 'OBJECT',
       properties: {
-        propertyName: { type: 'string' },
-        developer: { type: 'string' },
-        locationSummary: { type: 'string' },
-        marketPricePerSqft: {
-          type: 'object', additionalProperties: false,
-          properties: { low: { type: 'number' }, high: { type: 'number' }, unit: { type: 'string' }, confidence: { type: 'string' } },
-          required: ['low','high','unit','confidence']
-        },
-        estimatedValue: {
-          type: 'object', additionalProperties: false,
-          properties: { low: { type: 'number' }, high: { type: 'number' }, confidence: { type: 'string' } },
-          required: ['low','high','confidence']
-        },
-        rental: {
-          type: 'object', additionalProperties: false,
-          properties: { monthlyLow: { type: 'number' }, monthlyHigh: { type: 'number' }, yieldLow: { type: 'number' }, yieldHigh: { type: 'number' }, confidence: { type: 'string' } },
-          required: ['monthlyLow','monthlyHigh','yieldLow','yieldHigh','confidence']
-        },
-        appreciation: {
-          type: 'object', additionalProperties: false,
-          properties: { fiveYearLow: { type: 'number' }, fiveYearBase: { type: 'number' }, fiveYearHigh: { type: 'number' }, confidence: { type: 'string' } },
-          required: ['fiveYearLow','fiveYearBase','fiveYearHigh','confidence']
-        },
-        score: { type: 'number' },
-        verdict: { type: 'string', enum: ['BUY','NEGOTIATE','WATCH','AVOID'] },
-        profile: { type: 'string' },
-        breakEvenAppreciation: { type: ['number','null'] },
-        metrics: {
-          type: 'array', items: { type: 'object', additionalProperties: false, properties: { label: { type: 'string' }, score: { type: 'number' } }, required: ['label','score'] }
-        },
-        strengths: { type: 'array', items: { type: 'string' } },
-        risks: { type: 'array', items: { type: 'string' } },
-        scenarios: {
-          type: 'array', items: { type: 'object', additionalProperties: false, properties: { name: { type: 'string' }, appreciation: { type: 'string' }, comment: { type: 'string' } }, required: ['name','appreciation','comment'] }
-        },
-        recommendation: { type: 'string' },
-        sources: {
-          type: 'array', items: { type: 'object', additionalProperties: false, properties: { title: { type: 'string' }, url: { type: 'string' } }, required: ['title','url'] }
-        },
-        dataGaps: { type: 'array', items: { type: 'string' } }
+        propertyName: { type: 'STRING' },
+        developer: { type: 'STRING' },
+        locationSummary: { type: 'STRING' },
+        marketPricePerSqft: { type: 'OBJECT', properties: { low: { type: 'NUMBER' }, high: { type: 'NUMBER' }, unit: { type: 'STRING' }, confidence: { type: 'STRING' } }, required: ['low','high','unit','confidence'] },
+        estimatedValue: { type: 'OBJECT', properties: { low: { type: 'NUMBER' }, high: { type: 'NUMBER' }, confidence: { type: 'STRING' } }, required: ['low','high','confidence'] },
+        rental: { type: 'OBJECT', properties: { monthlyLow: { type: 'NUMBER' }, monthlyHigh: { type: 'NUMBER' }, yieldLow: { type: 'NUMBER' }, yieldHigh: { type: 'NUMBER' }, confidence: { type: 'STRING' } }, required: ['monthlyLow','monthlyHigh','yieldLow','yieldHigh','confidence'] },
+        appreciation: { type: 'OBJECT', properties: { fiveYearLow: { type: 'NUMBER' }, fiveYearBase: { type: 'NUMBER' }, fiveYearHigh: { type: 'NUMBER' }, confidence: { type: 'STRING' } }, required: ['fiveYearLow','fiveYearBase','fiveYearHigh','confidence'] },
+        score: { type: 'NUMBER' },
+        verdict: { type: 'STRING', enum: ['BUY','NEGOTIATE','WATCH','AVOID'] },
+        profile: { type: 'STRING' },
+        breakEvenAppreciation: { type: 'NUMBER', nullable: true },
+        metrics: { type: 'ARRAY', items: { type: 'OBJECT', properties: { label: { type: 'STRING' }, score: { type: 'NUMBER' } }, required: ['label','score'] } },
+        strengths: { type: 'ARRAY', items: { type: 'STRING' } },
+        risks: { type: 'ARRAY', items: { type: 'STRING' } },
+        scenarios: { type: 'ARRAY', items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, appreciation: { type: 'STRING' }, comment: { type: 'STRING' } }, required: ['name','appreciation','comment'] } },
+        recommendation: { type: 'STRING' },
+        sources: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, url: { type: 'STRING' } }, required: ['title','url'] } },
+        dataGaps: { type: 'ARRAY', items: { type: 'STRING' } }
       },
       required: ['propertyName','developer','locationSummary','marketPricePerSqft','estimatedValue','rental','appreciation','score','verdict','profile','breakEvenAppreciation','metrics','strengths','risks','scenarios','recommendation','sources','dataGaps']
     };
@@ -93,36 +70,40 @@ Return the requested structured object. Do not wrap it in markdown.`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 90000);
 
-    const response = await fetch('https://ai-gateway.vercel.sh/v1/responses', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: process.env.PROPERTYIQ_MODEL || 'openai/gpt-5.6-luna',
-        reasoning: { effort: 'low' },
-        tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'IN', region: 'Maharashtra', city: 'Pune', timezone: 'Asia/Kolkata' } }],
-        input: prompt,
-        text: { format: { type: 'json_schema', name: 'propertyiq_result', schema } }
-      })
-    }).finally(() => clearTimeout(timeout));
+    let response;
+    try {
+      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + encodeURIComponent(apiKey), {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: 'application/json',
+            responseSchema: schema
+          }
+        })
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const raw = await response.text();
     let payload;
     try { payload = JSON.parse(raw); } catch { payload = null; }
 
     if (!response.ok) {
-      const message = payload?.error?.message || payload?.message || raw.slice(0, 500) || 'AI Gateway request failed.';
-      console.error('PropertyIQ AI Gateway error', response.status, message);
+      const message = payload?.error?.message || raw.slice(0, 500) || 'Gemini request failed.';
+      console.error('PropertyIQ Gemini error', response.status, message);
       return res.status(502).json({ error: `AI research failed (${response.status}): ${message}` });
     }
 
-    const text = payload?.output_text || payload?.output?.find(x => x.type === 'message')?.content?.find(x => x.type === 'output_text')?.text || '';
+    const text = payload?.candidates?.[0]?.content?.parts?.find(p => typeof p.text === 'string')?.text || '';
     if (!text) {
-      console.error('PropertyIQ empty AI response', JSON.stringify(payload).slice(0, 2000));
-      return res.status(502).json({ error: 'AI Gateway returned an empty research response. Please try again.' });
+      console.error('PropertyIQ empty Gemini response', JSON.stringify(payload).slice(0, 3000));
+      return res.status(502).json({ error: 'Gemini returned an empty research response. Please try again.' });
     }
 
     let result;
@@ -130,7 +111,7 @@ Return the requested structured object. Do not wrap it in markdown.`;
       result = JSON.parse(text);
     } catch (parseError) {
       console.error('PropertyIQ JSON parse error', parseError.message, text.slice(0, 2000));
-      return res.status(502).json({ error: 'AI research returned an invalid structured result. Please try again.' });
+      return res.status(502).json({ error: 'Gemini returned an invalid structured result. Please try again.' });
     }
 
     result.researchedAt = new Date().toISOString();
