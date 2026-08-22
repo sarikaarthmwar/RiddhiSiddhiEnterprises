@@ -12,15 +12,23 @@ function cleanText(value, max = 80) {
     : '';
 }
 
+function storageUrl() {
+  return process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+}
+
+function storageToken() {
+  return process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+}
+
 function kvEnabled() {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  return Boolean(storageUrl() && storageToken());
 }
 
 async function kvPipeline(commands) {
-  const response = await fetch(process.env.KV_REST_API_URL + '/pipeline', {
+  const response = await fetch(storageUrl() + '/pipeline', {
     method: 'POST',
     headers: {
-      Authorization: 'Bearer ' + process.env.KV_REST_API_TOKEN,
+      Authorization: 'Bearer ' + storageToken(),
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(commands)
