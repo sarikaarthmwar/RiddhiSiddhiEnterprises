@@ -4,10 +4,12 @@ PropertyIQ analytics is intentionally optional: property research and lead submi
 
 ## Required Vercel environment variables
 
-Create a Vercel KV / Upstash Redis REST database, then set these variables for Preview and Production:
+Connect Upstash Redis through the Vercel Marketplace. It automatically adds these variables for Preview and Production:
 
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+
+The endpoint also accepts the legacy `KV_REST_API_URL` and `KV_REST_API_TOKEN` names if you already use them.
 
 The analytics function stores only anonymous event data: event type, an opaque browser analysis ID, timestamp, property type, location, investment intent, and score. It never writes names, phone numbers, or email addresses.
 
