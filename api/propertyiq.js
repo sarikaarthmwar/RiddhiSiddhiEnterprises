@@ -38,14 +38,27 @@ Return only the structured JSON object requested by the response schema.`;
     const timeout = setTimeout(() => controller.abort(), 90000);
     let response;
     try {
-      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey), {
+      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + encodeURIComponent(apiKey), {
         method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema } })
       });
     } finally { clearTimeout(timeout); }
 
-    const raw = await response.text();
+    let raw = await response.text();
     let payload; try { payload = JSON.parse(raw); } catch { payload = null; }
+
+    // Google Search grounding requires a paid Gemini API tier for Gemini 3.x.
+    // Preserve live research where available, but still return a useful, clearly
+    // evidence-limited assessment for projects without grounding quota.
+    if (response.status === 429) {
+      console.warn('PropertyIQ grounding quota unavailable; retrying without Google Search grounding.');
+      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + encodeURIComponent(apiKey), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `${prompt}\n\nGoogle Search grounding is unavailable for this request. Do not claim to have searched the web, do not invent source URLs, and explicitly list missing live-market information in dataGaps.` }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema } })
+      });
+      raw = await response.text();
+      try { payload = JSON.parse(raw); } catch { payload = null; }
+    }
     if (!response.ok) {
       const message = payload?.error?.message || raw.slice(0, 500) || 'Gemini request failed.';
       console.error('PropertyIQ Gemini error', response.status, message);
