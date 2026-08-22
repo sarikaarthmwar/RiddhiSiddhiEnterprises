@@ -28,7 +28,8 @@ Return only the structured JSON object requested by the response schema.`;
         metrics: { type: 'ARRAY', items: { type: 'OBJECT', properties: { label: { type: 'STRING' }, score: { type: 'NUMBER' } }, required: ['label','score'] } },
         strengths: { type: 'ARRAY', items: { type: 'STRING' } }, risks: { type: 'ARRAY', items: { type: 'STRING' } },
         scenarios: { type: 'ARRAY', items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, appreciation: { type: 'STRING' }, comment: { type: 'STRING' } }, required: ['name','appreciation','comment'] } },
-        recommendation: { type: 'STRING' }, sources: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, url: { type: 'STRING' } }, required: ['title','url'] }, dataGaps: { type: 'ARRAY', items: { type: 'STRING' } }
+        recommendation: { type: 'STRING' }, sources: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, url: { type: 'STRING' } }, required: ['title','url'] } },
+        dataGaps: { type: 'ARRAY', items: { type: 'STRING' } }
       },
       required: ['propertyName','developer','locationSummary','marketPricePerSqft','estimatedValue','rental','appreciation','score','verdict','profile','breakEvenAppreciation','metrics','strengths','risks','scenarios','recommendation','sources','dataGaps']
     };
