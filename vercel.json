@@ -1,6 +1,20 @@
 {
   "rewrites": [
-    { "source": "/propertyiq", "destination": "/propertyiq/v2.html" },
-    { "source": "/propertyiq/", "destination": "/propertyiq/v2.html" }
+    {
+      "source": "/propertyiq",
+      "destination": "/propertyiq/v2.html"
+    },
+    {
+      "source": "/propertyiq/",
+      "destination": "/propertyiq/v2.html"
+    },
+    {
+      "source": "/propertyiq-dashboard",
+      "destination": "/propertyiq-dashboard/index.html"
+    },
+    {
+      "source": "/propertyiq-dashboard/",
+      "destination": "/propertyiq-dashboard/index.html"
+    }
   ]
 }
