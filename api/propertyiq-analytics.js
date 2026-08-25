@@ -94,6 +94,15 @@ function metrics(events) {
       location: event.location || 'Location not shared',
       score: Number.isFinite(event.score) ? event.score : null,
       createdAt: event.createdAtMs
+    })),
+    analyses: completed.slice().sort((a, b) => b.createdAtMs - a.createdAtMs).map((event) => ({
+      analysisId: event.analysisId,
+      eventType: event.eventType,
+      propertyType: event.propertyType || 'Property',
+      location: event.location || 'Location not shared',
+      investmentIntent: event.investmentIntent || 'Not specified',
+      score: Number.isFinite(event.score) ? event.score : null,
+      createdAt: event.createdAtMs
     }))
   };
 }
