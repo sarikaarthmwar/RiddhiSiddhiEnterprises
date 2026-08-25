@@ -37,6 +37,13 @@ async function kvPipeline(commands) {
   return response.json();
 }
 
+async function getAnalysis(analysisId) {
+  const rows = await kvPipeline([['GET', 'propertyiq:analysis:' + analysisId]]);
+  const value = rows?.[0]?.result;
+  if (!value) return null;
+  try { return JSON.parse(value); } catch (_) { return null; }
+}
+
 async function recordEvent(event) {
   const dedupeKey = 'propertyiq:event:' + event.analysisId + ':' + event.eventType;
   const dedupe = await kvPipeline([['SET', dedupeKey, '1', 'NX', 'EX', RETENTION_SECONDS]]);
@@ -136,6 +143,13 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'GET') {
+      const requestedAnalysisId = cleanText(req.query?.analysisId, 100);
+      if (requestedAnalysisId) {
+        const analysis = await getAnalysis(requestedAnalysisId);
+        if (!analysis) return json(res, 404, { error: 'Analysis not found.' });
+        return json(res, 200, { configured: true, analysis });
+      }
+
       const range = ['today', '7d', '30d', 'all'].includes(req.query?.range) ? req.query.range : '30d';
       const now = Date.now();
       const start = range === 'today' ? new Date(new Date().toDateString()).getTime()
