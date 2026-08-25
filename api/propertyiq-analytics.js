@@ -25,38 +25,43 @@ async function getAnalysis(analysisId) {
   try { return JSON.parse(value); } catch (_) { return null; }
 }
 
-// The PropertyIQ page historically generated a browser UUID for analytics but
-// did not send that UUID to /api/propertyiq. The full analysis was therefore
-// stored under a separate piq-* ID. Recover that link for existing records and
-// create an alias so the dashboard can retrieve the exact response by its
-// analytics Analysis ID.
 async function findStoredAnalysisForEvent(event) {
+  // Backfill legacy browser UUIDs by matching the stored server analysis.
+  // We intentionally use multiple independent signals and require a close
+  // timestamp so one user's analysis cannot be attached to another user's row.
   let cursor = '0';
   const candidates = [];
-  for (let page = 0; page < 5; page += 1) {
-    const rows = await kvPipeline([['SCAN', cursor, 'MATCH', 'propertyiq:analysis:*', 'COUNT', 500]]);
-    const result = rows?.[0]?.result || [];
-    cursor = String(result[0] ?? '0');
+  for (let page = 0; page < 20; page += 1) {
+    const scan = await kvPipeline([['SCAN', cursor, 'MATCH', 'propertyiq:analysis:*', 'COUNT', 500]]);
+    const result = scan?.[0]?.result;
+    if (!Array.isArray(result) || result.length < 2) break;
+    cursor = String(result[0]);
     const keys = result[1] || [];
     if (keys.length) {
       const values = await kvPipeline(keys.map((key) => ['GET', key]));
-      values.forEach((row) => {
+      values.forEach((row, index) => {
         const raw = row?.result;
         if (!raw) return;
         try {
           const record = JSON.parse(raw);
+          if (record.analyticsAnalysisId === event.analysisId) {
+            candidates.push({ record, ageMs: 0, exactAlias: true });
+            return;
+          }
           const input = record.input || {};
           const sameLocation = cleanText(input.location, 80).toLowerCase() === cleanText(event.location, 80).toLowerCase();
           const sameType = cleanText(input.propertyType, 50).toLowerCase() === cleanText(event.propertyType, 50).toLowerCase();
-          const sameScore = Number(record.analysis?.score) === Number(event.score);
+          const sameScore = event.score == null || Number(record.analysis?.score) === Number(event.score);
           const ageMs = Math.abs(Number(record.createdAtMs || 0) - Number(event.createdAtMs || 0));
-          if (sameLocation && sameType && sameScore && ageMs <= 10 * 60 * 1000) candidates.push({ record, ageMs });
+          if (sameLocation && sameType && sameScore && ageMs <= 30 * 60 * 1000) {
+            candidates.push({ record, ageMs, exactAlias: false });
+          }
         } catch (_) {}
       });
     }
     if (cursor === '0') break;
   }
-  candidates.sort((a, b) => a.ageMs - b.ageMs);
+  candidates.sort((a, b) => (a.exactAlias ? -1 : 0) - (b.exactAlias ? -1 : 0) || a.ageMs - b.ageMs);
   return candidates[0]?.record || null;
 }
 
@@ -84,7 +89,38 @@ async function recordEvent(event) {
   return { duplicate: false };
 }
 
-function metrics(events) {
+async function enrichAnalyses(events) {
+  const completed = events.filter((event) => event.eventType === 'analysis_completed');
+  const analyses = [];
+  for (const event of completed) {
+    let analysis = await getAnalysis(event.analysisId);
+    if (!analysis) {
+      try { analysis = await linkAnalysisToEvent(event); } catch (error) { console.warn('PropertyIQ analysis linkage warning', error?.message); }
+    }
+    analyses.push({
+      analysisId: event.analysisId,
+      eventType: event.eventType,
+      propertyType: event.propertyType || 'Property',
+      location: event.location || 'Location not shared',
+      investmentIntent: event.investmentIntent || 'Not specified',
+      score: Number.isFinite(event.score) ? event.score : null,
+      createdAt: event.createdAtMs,
+      response: analysis ? {
+        propertyName: analysis.analysis?.propertyName || analysis.analysis?.propertyName || analysis.input?.project || null,
+        verdict: analysis.analysis?.verdict || null,
+        recommendation: analysis.analysis?.recommendation || null,
+        marketRatePerSqft: analysis.valuation?.marketRatePerSqft ?? analysis.analysis?.valuationMethod?.marketRatePerSqft ?? null,
+        lowRatePerSqft: analysis.valuation?.lowRatePerSqft ?? analysis.analysis?.valuationMethod?.lowRatePerSqft ?? null,
+        highRatePerSqft: analysis.valuation?.highRatePerSqft ?? analysis.analysis?.valuationMethod?.highRatePerSqft ?? null,
+        quotedRatePerSqft: analysis.valuation?.quotedRatePerSqft ?? analysis.analysis?.valuationMethod?.quotedRatePerSqft ?? null,
+        fullAnalysisAvailable: true
+      } : { fullAnalysisAvailable: false }
+    });
+  }
+  return analyses.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+async function buildMetrics(events) {
   const completed = events.filter((event) => event.eventType === 'analysis_completed');
   const leads = events.filter((event) => event.eventType === 'lead_submitted');
   const locations = {}, propertyTypes = {}, intents = {}, scores = Array(5).fill(0), trend = {};
@@ -102,14 +138,16 @@ function metrics(events) {
     leadsGenerated: leads.length,
     conversionRate: completed.length ? Math.round((leads.length / completed.length) * 1000) / 10 : 0,
     averageScore: completed.length ? Math.round(completed.reduce((sum, event) => sum + (Number(event.score) || 0), 0) / completed.length) : null,
-    propertyTypes: sortCounts(propertyTypes), intents: sortCounts(intents), locations: sortCounts(locations).slice(0, 8),
+    propertyTypes: sortCounts(propertyTypes),
+    intents: sortCounts(intents),
+    locations: sortCounts(locations).slice(0, 8),
     scoreDistribution: [
       { label: '0–19', value: scores[0] }, { label: '20–39', value: scores[1] }, { label: '40–59', value: scores[2] },
       { label: '60–79', value: scores[3] }, { label: '80–100', value: scores[4] }
     ],
     trend: Object.entries(trend).sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value })),
     recent: completed.slice(-8).reverse().map((event) => ({ propertyType: event.propertyType || 'Property', location: event.location || 'Location not shared', score: Number.isFinite(event.score) ? event.score : null, createdAt: event.createdAtMs })),
-    analyses: completed.slice().sort((a, b) => b.createdAtMs - a.createdAtMs).map((event) => ({ analysisId: event.analysisId, eventType: event.eventType, propertyType: event.propertyType || 'Property', location: event.location || 'Location not shared', investmentIntent: event.investmentIntent || 'Not specified', score: Number.isFinite(event.score) ? event.score : null, createdAt: event.createdAtMs }))
+    analyses: await enrichAnalyses(events)
   };
 }
 
@@ -120,7 +158,15 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const body = req.body || {}, eventType = body.eventType, analysisId = cleanText(body.analysisId, 100);
       if (!ALLOWED_EVENTS.has(eventType) || !/^[a-zA-Z0-9_-]{12,100}$/.test(analysisId)) return json(res, 400, { error: 'Invalid analytics event.' });
-      const event = { eventType, analysisId, createdAtMs: Date.now(), propertyType: cleanText(body.propertyType, 50), location: cleanText(body.location, 80), investmentIntent: cleanText(body.investmentIntent, 50), score: Number.isFinite(Number(body.score)) ? Math.max(0, Math.min(100, Math.round(Number(body.score)))) : null };
+      const event = {
+        eventType,
+        analysisId,
+        createdAtMs: Date.now(),
+        propertyType: cleanText(body.propertyType, 50),
+        location: cleanText(body.location, 80),
+        investmentIntent: cleanText(body.investmentIntent, 50),
+        score: Number.isFinite(Number(body.score)) ? Math.max(0, Math.min(100, Math.round(Number(body.score)))) : null
+      };
       const result = await recordEvent(event);
       if (eventType === 'analysis_completed' && !result.duplicate) {
         try { await linkAnalysisToEvent(event); } catch (linkError) { console.warn('PropertyIQ analysis linkage warning', linkError?.message); }
@@ -139,7 +185,7 @@ module.exports = async function handler(req, res) {
       const start = range === 'today' ? new Date(new Date().toDateString()).getTime() : range === '7d' ? now - 7 * 86400000 : range === '30d' ? now - 30 * 86400000 : 0;
       const rows = await kvPipeline([['ZRANGEBYSCORE', 'propertyiq:events', start, '+inf', 'LIMIT', 0, MAX_EVENTS]]);
       const events = (rows?.[0]?.result || []).map((value) => { try { return JSON.parse(value); } catch (_) { return null; } }).filter(Boolean);
-      return json(res, 200, { configured: true, range, generatedAt: new Date().toISOString(), ...metrics(events) });
+      return json(res, 200, { configured: true, range, generatedAt: new Date().toISOString(), ...(await buildMetrics(events)) });
     }
     return json(res, 405, { error: 'Method not allowed.' });
   } catch (error) {
